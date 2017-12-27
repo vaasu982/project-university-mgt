@@ -6,3 +6,18 @@ find . -type f -name "*.log*" -mtime +10 | xargs zip ./old_log_$(date +%F).zip
 * Delete file after taking backup
 
 find . -type f -name "*.log*" -mtime +10 -exec rm {} \;
+
+* Scp commad
+
+scp username@vis2323e23.srv.net:/local/logs/*.zip .
+
+scp /tmp/mark/*.zip username@vis2323e23.srv.net:/tmp/mark/logs/
+
+*
+grep -rnw '/local/apps/logs' -e "VC161402165" 
+
+Run this in current dir. It will search all subdir recursively 
+
+find . -name "*.sh" -print0 | xargs -0 egrep "bjob.enable" | more 
+
+*
