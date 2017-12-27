@@ -1,0 +1,8 @@
+
+* Create zip file of all older than x days:
+
+find . -type f -name "*.log*" -mtime +10 | xargs zip ./old_log_$(date +%F).zip
+
+* Delete file after taking backup
+
+find . -type f -name "*.log*" -mtime +10 -exec rm {} \;
