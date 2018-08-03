@@ -7,3 +7,5 @@ https://www.geeksforgeeks.org/remove-duplicates-from-an-unsorted-linked-list/
 
 https://www.geeksforgeeks.org/remove-duplicates-from-a-sorted-linked-list/
 
+https://www.forward.com.au/javaProgramming/threadReturnsPackage/ToCatchAThread.html
+
