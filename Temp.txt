@@ -1,0 +1,240 @@
+---
+import org.json.JSONArray;
+import org.json.JSONObject;
+import javax.mail.*;
+import javax.mail.internet.*;
+import java.io.FileWriter;
+import java.sql.*;
+import java.util.Properties;
+
+public class SQLComparisonReport {
+    public static void main(String[] args) {
+        String jsonConfig = """
+                {
+                  "queries": [
+                    {
+                      "title": "Fetch all users",
+                      "oraclesql": "SELECT count(*) AS ctt FROM users",
+                      "mssql": "SELECT count(*) AS ctt FROM users"
+                    },
+                    {
+                      "title": "Trade count group by",
+                      "oraclesql": "SELECT trade_id, trade_type, COUNT(*) AS trade_count FROM trade GROUP BY trade_id, trade_type",
+                      "mssql": "SELECT trade_id, trade_type, COUNT(*) AS trade_count FROM trade GROUP BY trade_id, trade_type"
+                    }
+                  ]
+                }
+                """;
+        generateAndSendReport(jsonConfig);
+    }
+
+    public static void generateAndSendReport(String jsonConfig) {
+        JSONObject jsonObject = new JSONObject(jsonConfig);
+        JSONArray queries = jsonObject.getJSONArray("queries");
+        
+        StringBuilder htmlReport = new StringBuilder();
+        htmlReport.append("<html><head><style>")
+                .append("table {border-collapse: collapse; width: 100%;} ")
+                .append("th, td {border: 1px solid black; padding: 8px; text-align: left;}")
+                .append("th {background-color: #f2f2f2;}")
+                .append("</style></head><body>");
+
+        try (Connection oracleConn = getOracleConnection();
+             Connection msSqlConn = getMsSqlConnection()) {
+
+            for (int i = 0; i < queries.length(); i++) {
+                JSONObject queryObj = queries.getJSONObject(i);
+                String title = queryObj.getString("title");
+                String oracleSql = queryObj.getString("oraclesql");
+                String msSql = queryObj.getString("mssql");
+
+                htmlReport.append("<h3>").append(title).append("</h3>");
+                
+                ResultSet oracleResult = executeQuery(oracleConn, oracleSql);
+                ResultSet msSqlResult = executeQuery(msSqlConn, msSql);
+                
+                htmlReport.append(generateHtmlTable(oracleResult, msSqlResult));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        htmlReport.append("</body></html>");
+        
+        sendEmailWithReport(htmlReport.toString());
+    }
+
+    private static ResultSet executeQuery(Connection conn, String sql) throws SQLException {
+        PreparedStatement stmt = conn.prepareStatement(sql);
+        return stmt.executeQuery();
+    }
+
+    private static String generateHtmlTable(ResultSet oracleResult, ResultSet msSqlResult) throws SQLException {
+        StringBuilder table = new StringBuilder("<table>");
+        
+        ResultSetMetaData oracleMeta = oracleResult.getMetaData();
+        int columnCount = oracleMeta.getColumnCount();
+        
+        table.append("<tr>");
+        for (int i = 1; i <= columnCount; i++) {
+            table.append("<th>").append(oracleMeta.getColumnLabel(i)).append("</th>");
+        }
+        table.append("<th>Oracle Count</th><th>MsSQL Count</th></tr>");
+        
+        while (oracleResult.next() && msSqlResult.next()) {
+            table.append("<tr>");
+            for (int i = 1; i <= columnCount; i++) {
+                table.append("<td>").append(oracleResult.getString(i)).append("</td>");
+            }
+            table.append("<td>").append(oracleResult.getInt(columnCount)).append("</td>");
+            table.append("<td>").append(msSqlResult.getInt(columnCount)).append("</td>");
+            table.append("</tr>");
+        }
+        table.append("</table>");
+        return table.toString();
+    }
+
+    private static void sendEmailWithReport(String htmlContent) {
+        String to = "recipient@example.com";
+        String from = "your-email@example.com";
+        String host = "smtp.example.com";
+        Properties properties = System.getProperties();
+        properties.setProperty("mail.smtp.host", host);
+        Session session = Session.getDefaultInstance(properties);
+        try {
+            MimeMessage message = new MimeMessage(session);
+            message.setFrom(new InternetAddress(from));
+            message.addRecipient(Message.RecipientType.TO, new InternetAddress(to));
+            message.setSubject("SQL Comparison Report");
+            message.setContent(htmlContent, "text/html");
+            Transport.send(message);
+            System.out.println("Email sent successfully");
+        } catch (MessagingException mex) {
+            mex.printStackTrace();
+        }
+    }
+
+    private static Connection getOracleConnection() throws SQLException {
+        String url = "jdbc:oracle:thin:@your-oracle-host:1521:orcl";
+        String user = "your_oracle_user";
+        String password = "your_oracle_password";
+        return DriverManager.getConnection(url, user, password);
+    }
+
+    private static Connection getMsSqlConnection() throws SQLException {
+        String url = "jdbc:sqlserver://your-mssql-host:1433;databaseName=yourDB";
+        String user = "your_mssql_user";
+        String password = "your_mssql_password";
+        return DriverManager.getConnection(url, user, password);
+    }
+}
+---------------------------------
+
+private static String generateHtmlTable(ResultSet oracleResult, ResultSet msSqlResult) throws SQLException {
+    StringBuilder table = new StringBuilder("<table>");
+
+    Map<String, Integer[]> resultMap = new HashMap<>();
+
+    // Read Oracle results
+    while (oracleResult.next()) {
+        String key = oracleResult.getString("trade_id") + "_" + oracleResult.getString("trade_type");
+        int count = oracleResult.getInt("trade_count");
+        resultMap.put(key, new Integer[]{count, null});
+    }
+
+    // Read MSSQL results
+    while (msSqlResult.next()) {
+        String key = msSqlResult.getString("trade_id") + "_" + msSqlResult.getString("trade_type");
+        int count = msSqlResult.getInt("trade_count");
+        
+        resultMap.putIfAbsent(key, new Integer[]{null, null}); // Initialize if not present
+        resultMap.get(key)[1] = count;
+    }
+
+    // Create table headers dynamically
+    table.append("<tr><th>trade_id</th><th>trade_type</th><th>Oracle trade_count</th><th>MsSQL trade_count</th></tr>");
+
+    // Fill table with data
+    for (Map.Entry<String, Integer[]> entry : resultMap.entrySet()) {
+        String[] keyParts = entry.getKey().split("_");
+        Integer oracleCount = entry.getValue()[0];
+        Integer msSqlCount = entry.getValue()[1];
+
+        table.append("<tr>")
+                .append("<td>").append(keyParts[0]).append("</td>")  // trade_id
+                .append("<td>").append(keyParts[1]).append("</td>")  // trade_type
+                .append("<td>").append(oracleCount != null ? oracleCount : "N/A").append("</td>") // Oracle count
+                .append("<td>").append(msSqlCount != null ? msSqlCount : "N/A").append("</td>") // MS SQL count
+                .append("</tr>");
+    }
+
+    table.append("</table>");
+    return table.toString();
+}
+-----------------------------------
+private static String generateHtmlTable(ResultSet oracleResult, ResultSet msSqlResult) throws SQLException {
+    StringBuilder table = new StringBuilder("<table>");
+
+    ResultSetMetaData oracleMeta = oracleResult.getMetaData();
+    int columnCount = oracleMeta.getColumnCount();
+
+    // Handle single-row queries (COUNT queries)
+    if (columnCount == 1) {
+        table.append("<tr><th>Oracle ").append(oracleMeta.getColumnLabel(1))
+                .append("</th><th>MsSQL ").append(oracleMeta.getColumnLabel(1)).append("</th></tr>");
+
+        oracleResult.next();
+        msSqlResult.next();
+        
+        int oracleCount = oracleResult.getInt(1);
+        int msSqlCount = msSqlResult.getInt(1);
+
+        table.append("<tr><td>").append(oracleCount).append("</td>")
+                .append("<td>").append(msSqlCount).append("</td></tr>");
+    } 
+    
+    // Handle multi-row queries (GROUP BY queries)
+    else {
+        Map<String, Integer[]> resultMap = new HashMap<>();
+
+        // Read Oracle results
+        while (oracleResult.next()) {
+            String key = oracleResult.getString(1) + "_" + oracleResult.getString(2); // trade_id + trade_type
+            int count = oracleResult.getInt(3);
+            resultMap.put(key, new Integer[]{count, null});
+        }
+
+        // Read MSSQL results
+        while (msSqlResult.next()) {
+            String key = msSqlResult.getString(1) + "_" + msSqlResult.getString(2);
+            int count = msSqlResult.getInt(3);
+
+            resultMap.putIfAbsent(key, new Integer[]{null, null}); // Initialize if not present
+            resultMap.get(key)[1] = count;
+        }
+
+        // Create table headers dynamically
+        table.append("<tr><th>").append(oracleMeta.getColumnLabel(1)).append("</th>")
+                .append("<th>").append(oracleMeta.getColumnLabel(2)).append("</th>")
+                .append("<th>Oracle ").append(oracleMeta.getColumnLabel(3)).append("</th>")
+                .append("<th>MsSQL ").append(oracleMeta.getColumnLabel(3)).append("</th></tr>");
+
+        // Fill table with data
+        for (Map.Entry<String, Integer[]> entry : resultMap.entrySet()) {
+            String[] keyParts = entry.getKey().split("_");
+            Integer oracleCount = entry.getValue()[0];
+            Integer msSqlCount = entry.getValue()[1];
+
+            table.append("<tr>")
+                    .append("<td>").append(keyParts[0]).append("</td>")  // trade_id
+                    .append("<td>").append(keyParts[1]).append("</td>")  // trade_type
+                    .append("<td>").append(oracleCount != null ? oracleCount : "N/A").append("</td>") // Oracle count
+                    .append("<td>").append(msSqlCount != null ? msSqlCount : "N/A").append("</td>") // MS SQL count
+                    .append("</tr>");
+        }
+    }
+
+    table.append("</table>");
+    return table.toString();
+}
+----------------------------------
