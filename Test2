@@ -1,0 +1,51 @@
+import java.io.FileWriter; import java.io.IOException; import java.sql.*;
+
+public class QueryToCSVExporter { public static void main(String[] args) { String url = "jdbc:mysql://localhost:3306/your_database"; // Change as needed String user = "your_username"; String password = "your_password"; String query = "SELECT * FROM your_table"; // Change to your dynamic query String csvFilePath = "output.csv";
+
+exportQueryResultToCSV(url, user, password, query, csvFilePath);
+}
+
+public static void exportQueryResultToCSV(String url, String user, String password, String query, String csvFilePath) {
+    try (Connection conn = DriverManager.getConnection(url, user, password);
+         Statement stmt = conn.createStatement();
+         ResultSet rs = stmt.executeQuery(query);
+         FileWriter writer = new FileWriter(csvFilePath)) {
+        
+        ResultSetMetaData metaData = rs.getMetaData();
+        int columnCount = metaData.getColumnCount();
+        
+        // Writing the header
+        for (int i = 1; i <= columnCount; i++) {
+            writer.append(escapeCSV(metaData.getColumnName(i)));
+            if (i < columnCount) writer.append(",");
+        }
+        writer.append("\n");
+
+        // Writing data rows
+        while (rs.next()) {
+            for (int i = 1; i <= columnCount; i++) {
+                writer.append(escapeCSV(rs.getString(i)));
+                if (i < columnCount) writer.append(",");
+            }
+            writer.append("\n");
+        }
+
+        System.out.println("CSV file saved: " + csvFilePath);
+    } catch (SQLException | IOException e) {
+        e.printStackTrace();
+    }
+}
+
+// Method to escape CSV values
+private static String escapeCSV(String value) {
+    if (value == null) {
+        return "";
+    }
+    if (value.contains(",") || value.contains("\n") || value.contains(""")) {
+        value = value.replace(""", """"); // Escape double quotes
+        return """ + value + """; // Enclose in double quotes
+    }
+    return value;
+}
+
+}
