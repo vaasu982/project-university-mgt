@@ -1,0 +1,55 @@
+Here's a Unix shell script that meets your requirements. This script:
+
+Takes 4 parameters:
+
+1. Source file name
+
+
+2. Destination file name
+
+
+3. Find string
+
+
+4. Replace string
+
+
+
+Creates a copy of the source file with replacements applied to the destination file.
+
+
+Shell Script: replace_in_file.sh
+
+#!/bin/bash
+
+# Check if exactly 4 arguments are provided
+if [ "$#" -ne 4 ]; then
+  echo "Usage: $0 <source_file> <destination_file> <find_string> <replace_string>"
+  exit 1
+fi
+
+SOURCE_FILE="$1"
+DEST_FILE="$2"
+FIND_STRING="$3"
+REPLACE_STRING="$4"
+
+# Check if the source file exists
+if [ ! -f "$SOURCE_FILE" ]; then
+  echo "Source file does not exist: $SOURCE_FILE"
+  exit 2
+fi
+
+# Perform the replacement and create the destination file
+sed "s/${FIND_STRING}/${REPLACE_STRING}/g" "$SOURCE_FILE" > "$DEST_FILE"
+
+echo "Replacement done. New file created: $DEST_FILE"
+
+Usage Example:
+
+chmod +x replace_in_file.sh
+./replace_in_file.sh input.txt output.txt "hello" "hi"
+
+This will replace all occurrences of "hello" with "hi" in input.txt and write the result to output.txt.
+
+Let me know if you need it to handle special characters or multiline patterns.
+
