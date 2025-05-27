@@ -53,3 +53,31 @@ This will replace all occurrences of "hello" with "hi" in input.txt and write th
 
 Let me know if you need it to handle special characters or multiline patterns.
 
+ script to rename file this will keep extension intact 
+#!/bin/bash
+
+for file in *; do
+  if [[ -f "$file" ]]; then
+    base="${file%.*}"
+    ext="${file##*.}"
+    if [[ "$base" == "$ext" ]]; then  # no extension
+      newname="${base:0:-6}"
+    else
+      newname="${base:0:-6}.$ext"
+    fi
+    mv "$file" "$newname"
+  fi
+done
+
+
+# without considering extension 
+#!/bin/bash
+
+for file in *; do
+  if [[ -f "$file" ]]; then
+    filename="${file:0:-6}"
+    mv "$file" "$filename"
+  fi
+done
+
+
