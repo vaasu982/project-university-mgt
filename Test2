@@ -130,3 +130,54 @@ HttpRequest request = HttpRequest.newBuilder()
 HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
 System.out.println("Response: " + response.body());
+
+
+┌───────────────────────────┐
+│   Raw Financial Articles  │
+└────────────┬──────────────┘
+             │
+             ▼
+┌──────────────────────────────┐
+│ Preprocessing & Cleaning     │
+│ - Tokenization               │
+│ - Remove noise (HTML, stopwords)│
+└────────────┬─────────────────┘
+             │
+             ▼
+┌──────────────────────────────┐
+│ Named Entity Recognition     │
+│ - Extract sectors/companies  │
+│ - Map to GICS/SIC sectors    │
+└────────────┬─────────────────┘
+             │
+             ▼
+┌──────────────────────────────┐
+│ Sentiment Analysis (FinBERT) │
+│ - Article-level & sector-level│
+└────────────┬─────────────────┘
+             │
+             ▼
+┌────────────────────────────────────┐
+│ Time Aggregation (daily/weekly)   │
+│ - Sector sentiment over time      │
+└────────────┬──────────────────────┘
+             │
+             ▼
+┌───────────────────────────────────┐
+│ Sector Performance Modeling       │
+│ - XGBoost / LightGBM              │
+│ - Features: sentiment, macro data│
+└────────────┬──────────────────────┘
+             │
+             ▼
+┌────────────────────────────┐
+│ Portfolio Allocation Logic │
+│ - Rule-based / Optimizer   │
+│ - Top-K sectors            │
+└────────────┬───────────────┘
+             │
+             ▼
+┌────────────────────────────┐
+│    Sector Allocation Rec   │
+└────────────────────────────┘
+
