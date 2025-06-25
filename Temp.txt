@@ -238,3 +238,221 @@ private static String generateHtmlTable(ResultSet oracleResult, ResultSet msSqlR
     return table.toString();
 }
 ----------------------------------
+
+
+
+
+WebClient client = WebClient.builder()
+    .baseUrl("https://api.otherapp.com")
+    .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+    .build();
+WebClient tokenClient = WebClient.create();
+
+String token = tokenClient.post()
+    .uri("https://authserver.com/oauth/token")
+    .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+    .body(BodyInserters.fromFormData("grant_type", "client_credentials")
+         .with("client_id", clientId)
+         .with("client_secret", clientSecret))
+    .retrieve()
+    .bodyToMono(TokenResponse.class)
+    .block()
+    .getAccessToken();
+
+----------------
+import com.microsoft.aad.msal4j.*;
+
+import java.net.MalformedURLException;
+import java.util.Collections;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+
+public class MsalTokenExample {
+
+    public static void main(String[] args) throws Exception {
+        // === CONFIGURATION ===
+        String clientId = "YOUR_CLIENT_ID";
+        String clientSecret = "YOUR_CLIENT_SECRET";
+        String authority = "https://login.microsoftonline.com/YOUR_TENANT_ID"; // or /common
+
+        Set<String> scopes = Collections.singleton("https://graph.microsoft.com/.default"); // or your API scope
+
+        // === BUILD CONFIDENTIAL CLIENT ===
+        ConfidentialClientApplication app = ConfidentialClientApplication.builder(
+                clientId,
+                ClientCredentialFactory.createFromSecret(clientSecret))
+            .authority(authority)
+            .build();
+
+        // === CREATE REQUEST ===
+        ClientCredentialParameters parameters = ClientCredentialParameters.builder(scopes)
+            .build();
+
+        // === ACQUIRE TOKEN ===
+        CompletableFuture<IAuthenticationResult> future = app.acquireToken(parameters);
+        IAuthenticationResult result = future.get();
+
+        // === USE TOKEN ===
+        String accessToken = result.accessToken();
+        System.out.println("Access Token: " + accessToken);
+
+        // You can now use this token in Authorization header for HTTP calls
+    }
+}
+------------------------
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+
+HttpClient httpClient = HttpClient.newHttpClient();
+
+HttpRequest request = HttpRequest.newBuilder()
+    .uri(new URI("https://graph.microsoft.com/v1.0/me")) // or your API
+    .header("Authorization", "Bearer " + accessToken)
+    .GET()
+    .build();
+
+HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+System.out.println("Response: " + response.body());
+--------------------------
+import com.microsoft.aad.msal4j.*;
+
+import java.util.Set;
+import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
+
+public class MsalTokenProvider {
+
+    public static String getAccessToken() throws Exception {
+        String clientId = "YOUR_CLIENT_ID";
+        String clientSecret = "YOUR_CLIENT_SECRET";
+        String authority = "https://login.microsoftonline.com/YOUR_TENANT_ID";
+
+        ConfidentialClientApplication app = ConfidentialClientApplication.builder(
+                clientId,
+                ClientCredentialFactory.createFromSecret(clientSecret))
+            .authority(authority)
+            .build();
+
+        ClientCredentialParameters parameters = ClientCredentialParameters.builder(
+                Collections.singleton("https://graph.microsoft.com/.default"))
+            .build();
+
+        CompletableFuture<IAuthenticationResult> future = app.acquireToken(parameters);
+        return future.get().accessToken();
+    }
+}
+///////////////////////////////////
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+
+public class SecureApiCaller {
+
+    public static void main(String[] args) throws Exception {
+        // Step 1: Get the access token
+        String accessToken = MsalTokenProvider.getAccessToken();
+
+        // Step 2: Create HTTP client and request
+        HttpClient httpClient = HttpClient.newHttpClient();
+
+        HttpRequest request = HttpRequest.newBuilder()
+            .uri(new URI("https://graph.microsoft.com/v1.0/users")) // or your API URL
+            .header("Authorization", "Bearer " + accessToken)
+            .header("Accept", "application/json")
+            .GET()
+            .build();
+
+        // Step 3: Send request
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+        // Step 4: Print the response
+        System.out.println("Response code: " + response.statusCode());
+        System.out.println("Response body:\n" + response.body());
+    }
+}
+////////////////////////
+import com.microsoft.aad.msal4j.HttpRequest;
+import com.microsoft.aad.msal4j.HttpMethod;
+
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.HashMap;
+import java.util.Map;
+
+public class MsalHttpRequestExample {
+
+    public static void main(String[] args) throws MalformedURLException {
+        URL url = new URL("https://login.microsoftonline.com/common/oauth2/v2.0/token");
+
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Content-Type", "application/x-www-form-urlencoded");
+
+        String body = "client_id=...&client_secret=...&grant_type=client_credentials";
+
+        HttpRequest request = new HttpRequest(
+                url,
+                HttpMethod.POST,
+                headers,
+                body.getBytes(), // body as byte[]
+                null, // proxy
+                null  // SSL context
+        );
+
+        // But you cannot send this directly unless you implement HttpClientAdapter or use internal MSAL clients
+    }
+}
+///////////////////////////////
+import com.microsoft.aad.msal4j.*;
+
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
+
+public class TokenBasedApiCaller {
+
+    public static void main(String[] args) throws Exception {
+        // === MSAL4J: Configure client credentials ===
+        String clientId = "YOUR_CLIENT_ID";
+        String clientSecret = "YOUR_CLIENT_SECRET";
+        String authority = "https://login.microsoftonline.com/YOUR_TENANT_ID";
+
+        ConfidentialClientApplication app = ConfidentialClientApplication.builder(
+                clientId,
+                ClientCredentialFactory.createFromSecret(clientSecret))
+            .authority(authority)
+            .httpClient(new CustomHttpClient()) // Use custom MSAL4J client
+            .build();
+
+        // === Acquire Token for your target API (example: MS Graph) ===
+        ClientCredentialParameters parameters = ClientCredentialParameters.builder(
+                Collections.singleton("https://graph.microsoft.com/.default")) // or your custom scope
+            .build();
+
+        CompletableFuture<IAuthenticationResult> future = app.acquireToken(parameters);
+        String accessToken = future.get().accessToken();
+
+        System.out.println("Access Token: " + accessToken);
+
+        // === Call Any REST API using the token ===
+        HttpClient httpClient = HttpClient.newHttpClient();
+
+        HttpRequest apiRequest = HttpRequest.newBuilder()
+            .uri(URI.create("https://api.exchangerate-api.com/v4/latest/USD")) // example: currency API
+            .header("Authorization", "Bearer " + accessToken)
+            .header("Accept", "application/json")
+            .GET()
+            .build();
+
+        HttpResponse<String> apiResponse = httpClient.send(apiRequest, HttpResponse.BodyHandlers.ofString());
+
+        System.out.println("Currency API Response:");
+        System.out.println(apiResponse.body());
+    }
+}
