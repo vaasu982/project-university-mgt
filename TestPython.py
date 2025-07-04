@@ -24,6 +24,28 @@ async def upload_multiple_files(files: List[UploadFile] = File(...)):
     result = await save_files(files)
     return {"uploaded": result}
 ------------------------
+import os
+from fastapi import UploadFile
+from typing import List
+
+UPLOAD_DIR = "uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+async def save_files(files: List[UploadFile]) -> List[str]:
+    saved_files = []
+    for file in files:
+        file_path = os.path.join(UPLOAD_DIR, file.filename)
+        with open(file_path, "wb") as f:
+            content = await file.read()
+            f.write(content)
+        saved_files.append(file.filename)
+    return saved_files
+
+
+
+
+
+--------------------
 # Optional: create a virtual env
 python3.12 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
