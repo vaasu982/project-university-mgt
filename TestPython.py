@@ -1,46 +1,35 @@
-# coding: utf-8
-from flask import Flask, request, jsonify
-import os
+python-rest-upload/
+├── app/
+│   ├── main.py
+│   └── upload_handler.py
+├── requirements.txt
+└── README.md
+    
+    fastapi==0.111.0
+uvicorn==0.30.0
+python-multipart==0.0.9
+---
+    from fastapi import FastAPI, UploadFile, File
+from typing import List
+from app.upload_handler import save_files
 
-app = Flask(__name__)
+app = FastAPI()
 
-UPLOAD_FOLDER = 'uploads'
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
+@app.get("/")
+def read_root():
+    return {"message": "Welcome to the Python 3.12 REST API"}
 
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+@app.post("/upload-files/")
+async def upload_multiple_files(files: List[UploadFile] = File(...)):
+    result = await save_files(files)
+    return {"uploaded": result}
+------------------------
+# Optional: create a virtual env
+python3.12 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-@app.route('/')
-def index():
-    return "Welcome to Python 2.7 Flask REST API!"
-
-@app.route('/api/hello', methods=['GET'])
-def hello():
-    return jsonify({"message": "Hello from Python 2.7 API"})
-
-@app.route('/api/upload', methods=['POST'])
-def upload_files():
-    if 'files' not in request.files:
-        return jsonify({'error': 'No files part in the request'}), 400
-
-    files = request.files.getlist('files')
-    saved_files = []
-
-    for file in files:
-        if file.filename == '':
-            continue
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
-        file.save(filepath)
-        saved_files.append(file.filename)
-
-    return jsonify({'uploaded': saved_files}), 200
-
-if __name__ == '__main__':
-    app.run(debug=True)
--------------------
-virtualenv -p python2.7 venv
-source venv/bin/activate
---
+# Install dependencies
 pip install -r requirements.txt
---
-Flask==1.1.2
+
+# Run the FastAPI app
+uvicorn app.main:app --reload
