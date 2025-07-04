@@ -55,3 +55,30 @@ pip install -r requirements.txt
 
 # Run the FastAPI app
 uvicorn app.main:app --reload
+
+---------------
+
+
+@app.get("/portfolios/")
+def get_dummy_portfolios():
+    dummy_portfolios = [
+        {
+            "portfolio_id": 1,
+            "owner": "Alice",
+            "total_value": 150000.00,
+            "assets": [
+                {"type": "Stock", "name": "AAPL", "quantity": 50},
+                {"type": "Mutual Fund", "name": "Vanguard 500", "quantity": 100}
+            ]
+        },
+        {
+            "portfolio_id": 2,
+            "owner": "Bob",
+            "total_value": 98000.00,
+            "assets": [
+                {"type": "Stock", "name": "GOOGL", "quantity": 20},
+                {"type": "Bond", "name": "US Treasury", "quantity": 10}
+            ]
+        }
+    ]
+    return {"portfolios": dummy_portfolios}
