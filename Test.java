@@ -51,17 +51,50 @@ public static void exportQueryResultToCSV(String url, String user, String passwo
     }
 }
 
-// Method to escape CSV values
-private static String escapeCSV(String value) {
-    if (value == null) {
-        return "";
-    }
-    if (value.contains(",") || value.contains("\n") || value.contains("\"")) {
-        value = value.replace("\"", "\"\""); // Escape double quotes
-        return "\"" + value + "\""; // Enclose in double quotes
-    }
-    return value;
-}
 
+
+
+
+
+                                 import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.util.Properties;
+
+public class DBConnectionManager {
+    private static HikariDataSource dataSource;
+
+    static {
+        try (InputStream input = DBConnectionManager.class.getClassLoader().getResourceAsStream("db.properties")) {
+            Properties props = new Properties();
+            if (input == null) {
+                throw new RuntimeException("db.properties not found in classpath");
+            }
+            props.load(input);
+
+            HikariConfig config = new HikariConfig();
+            config.setJdbcUrl(props.getProperty("db.url"));
+            config.setUsername(props.getProperty("db.username"));
+            config.setPassword(props.getProperty("db.password"));
+
+            // Pool settings
+            config.setMaximumPoolSize(Integer.parseInt(props.getProperty("db.pool.size", "10")));
+            config.setMinimumIdle(2);
+            config.setIdleTimeout(30000);
+            config.setConnectionTimeout(10000);
+
+            dataSource = new HikariDataSource(config);
+        } catch (IOException e) {
+            throw new RuntimeException("Error loading DB config", e);
+        }
+    }
+
+    public static Connection getConnection() throws SQLException {
+        return dataSource.getConnection();
+    }
 }
 
