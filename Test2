@@ -181,3 +181,78 @@ System.out.println("Response: " + response.body());
 │    Sector Allocation Rec   │
 └────────────────────────────┘
 
+
+CREATE OR ALTER PROCEDURE usp_ProcessIssues
+AS
+BEGIN
+    SET NOCOUNT ON;
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        -- CTE: Get latest version of each issue from staging
+        ;WITH LatestStaging AS (
+            SELECT 
+                s.issue_id,
+                s.issue_status,
+                s.issue_name,
+                s.version
+            FROM staging_issue s
+            INNER JOIN (
+                SELECT issue_id, MAX(version) AS max_version
+                FROM staging_issue
+                GROUP BY issue_id
+            ) m ON s.issue_id = m.issue_id AND s.version = m.max_version
+        ),
+        IssuesToUpdate AS (
+            SELECT i.issue_id, s.issue_status, s.issue_name, s.version
+            FROM issue i
+            INNER JOIN LatestStaging s ON i.issue_id = s.issue_id
+            WHERE s.version > i.version
+        )
+        -- Step 1: Update issue table with latest version
+        UPDATE i
+        SET 
+            i.issue_status = u.issue_status,
+            i.issue_name   = u.issue_name,
+            i.version      = u.version
+        FROM issue i
+        INNER JOIN IssuesToUpdate u ON i.issue_id = u.issue_id;
+
+        -- Step 2a: Delete old descriptions for updated issues
+        DELETE d
+        FROM issue_desc d
+        INNER JOIN IssuesToUpdate u ON d.issue_id = u.issue_id;
+
+        -- Step 2b: Insert new descriptions for updated issues (latest version only)
+        INSERT INTO issue_desc (issue_id, issue_desc)
+        SELECT sd.issue_id, sd.issue_desc
+        FROM staging_issue_desc sd
+        INNER JOIN (
+            SELECT s.issue_id, s.version
+            FROM staging_issue s
+            INNER JOIN (
+                SELECT issue_id, MAX(version) AS max_version
+                FROM staging_issue
+                GROUP BY issue_id
+            ) m ON s.issue_id = m.issue_id AND s.version = m.max_version
+        ) latest ON sd.issue_id = latest.issue_id;
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        ROLLBACK TRANSACTION;
+
+        DECLARE @ErrorMessage NVARCHAR(4000), @IssueId INT;
+        SELECT @ErrorMessage = ERROR_MESSAGE();
+
+        -- Try to capture an issue_id that was being processed
+        SELECT TOP 1 @IssueId = issue_id 
+        FROM staging_issue 
+        ORDER BY version DESC;
+
+        INSERT INTO error (issue_id, error_desc)
+        VALUES (@IssueId, @ErrorMessage);
+    END CATCH
+END;
+GO
+
