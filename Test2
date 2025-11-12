@@ -255,4 +255,17 @@ BEGIN
     END CATCH
 END;
 GO
+---------------------------------------
 
+
+Resolved critical “Failed to flush errors” issue in CDS business events, eliminating recurring BlasterBag and downstream processing failures — improved system stability and reduced error occurrences in production.
+
+Designed and implemented a Data Comparator Tool to automate large-scale data validation, significantly reducing manual effort and improving data reconciliation accuracy.
+
+Set up and optimized CSV Comparator Tools for CDS, and successfully onboarded the SRM team by providing setup guidance and troubleshooting support, enabling faster data verification across systems.
+
+Partnered with QA team to perform cross-database data validation between Oracle and MS SQL, ensuring data consistency and improving test coverage for business-critical applications.
+
+Contributed to KTLO (Keep The Lights On) initiatives by promptly resolving user queries, analyzing production issues, and creating well-documented change requests — ensuring smooth release management and enhanced system reliability.
+
+Led the design and implementation of the Cumulus Instrument Processing module, delivering a scalable and efficient solution aligned with evolving business needs, improving overall processing throughput and maintainability.
